@@ -1,0 +1,234 @@
+[
+    {
+        "id": "v15tab",
+        "type": "tab",
+        "label": "Вариант 15 — Шлагбаум",
+        "disabled": false,
+        "info": "Период T=3 с. При загрузке таблицы readings и events полностью заменяются данными из log.txt. Храните полный журнал."
+    },
+    {
+        "id": "v15inject",
+        "type": "inject",
+        "z": "v15tab",
+        "name": "Загрузить лог",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "payload": "",
+        "payloadType": "date",
+        "x": 150,
+        "y": 100,
+        "wires": [
+            [
+                "v15read"
+            ]
+        ]
+    },
+    {
+        "id": "v15watch",
+        "type": "watch",
+        "z": "v15tab",
+        "name": "Следить за log.txt",
+        "files": "C:/Users/clabo/kursovoy15/data/log.txt",
+        "recursive": "",
+        "x": 150,
+        "y": 180,
+        "wires": [
+            [
+                "v15pause"
+            ]
+        ]
+    },
+    {
+        "id": "v15pause",
+        "type": "trigger",
+        "z": "v15tab",
+        "name": "Подождать сохранение",
+        "op1": "",
+        "op2": "",
+        "op1type": "nul",
+        "op2type": "str",
+        "duration": "1",
+        "extend": true,
+        "overrideDelay": false,
+        "units": "s",
+        "reset": "",
+        "bytopic": "all",
+        "topic": "topic",
+        "outputs": 1,
+        "x": 400,
+        "y": 180,
+        "wires": [
+            [
+                "v15read"
+            ]
+        ]
+    },
+    {
+        "id": "v15read",
+        "type": "file in",
+        "z": "v15tab",
+        "name": "Читать log.txt",
+        "filename": "C:/Users/clabo/kursovoy15/data/log.txt",
+        "filenameType": "str",
+        "format": "utf8",
+        "chunk": false,
+        "sendError": false,
+        "encoding": "utf8",
+        "allProps": false,
+        "x": 650,
+        "y": 100,
+        "wires": [
+            [
+                "v15parse"
+            ]
+        ]
+    },
+    {
+        "id": "v15parse",
+        "type": "function",
+        "z": "v15tab",
+        "name": "Разбор лога, T=3 с",
+        "func": "const T = 3;\nconst ranges = {s1:[0,100], s2:[2,400], s3:[0,1]};\nconst sql = [];\nlet cycles = 0;\nconst numeric = /^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$/;\nfor (const raw of String(msg.payload).replace(/^\\uFEFF/, '').split(/\\r?\\n/)) {\n  const line = raw.trim();\n  if (!line) continue;\n  const parts = line.split(/\\s+/);\n  const kind = parts.shift();\n  if (!['DATA','EVENT'].includes(kind)) {\n    node.error('Нужен исходный лог DATA/EVENT без перевода.', msg);\n    return null;\n  }\n  const f = {};\n  for (const part of parts) {\n    const pos = part.indexOf('=');\n    if (pos < 1) { node.error('Неверная строка: '+line, msg); return null; }\n    f[part.slice(0,pos)] = part.slice(pos+1);\n  }\n  const n = Number(f.n);\n  if (!/^\\d+$/.test(f.n || '') || !Number.isSafeInteger(n) || n<1 || !Number.isSafeInteger(n*T)) {\n    node.error('Неверный номер измерения.', msg);\n    return null;\n  }\n  const t = n*T;\n  if (kind === 'DATA') {\n    cycles++;\n    for (const s of ['s1','s2','s3']) {\n      const v = numeric.test(f[s] || '') ? Number(f[s]) : NaN;\n      if (Number.isFinite(v)) {\n        sql.push(`INSERT INTO readings(n,t_s,sensor,value) VALUES(${n},${t},'${s}',${v});`);\n      }\n      if (!Number.isFinite(v) || v<ranges[s][0] || v>ranges[s][1] || (s==='s3' && v!==0 && v!==1)) {\n        sql.push(`INSERT INTO events(n,t_s,type,message) VALUES(${n},${t},'FAULT','датчик ${s} вне диапазона');`);\n      }\n    }\n  } else {\n    if (!['THRESHOLD','NORMAL'].includes(f.type)) {\n      node.error('Неверный тип события.', msg);\n      return null;\n    }\n    sql.push(`INSERT INTO events(n,t_s,type,message) VALUES(${n},${t},'${f.type}','');`);\n  }\n}\nif (!cycles) { node.error('Нет строк DATA. База не изменена.', msg); return null; }\nconst head = 'BEGIN;\\nDELETE FROM readings;\\nDELETE FROM events;\\n' + \"DELETE FROM sqlite_sequence WHERE name IN ('readings','events');\\n\";\nconst tail = \"\\nCOMMIT;\\nSELECT 'readings',COUNT(*) FROM readings;\\nSELECT 'events',COUNT(*) FROM events;\\n\";\nnode.status({fill:'green',shape:'dot',text:cycles+' циклов'});\nreturn [null,{payload:head+sql.join('\\n')+tail}];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 890,
+        "y": 100,
+        "wires": [
+            [],
+            [
+                "v15write"
+            ]
+        ]
+    },
+    {
+        "id": "v15write",
+        "type": "file",
+        "z": "v15tab",
+        "name": "Записать load.sql",
+        "filename": "C:/Users/clabo/kursovoy15/db/load.sql",
+        "filenameType": "str",
+        "appendNewline": false,
+        "createDir": true,
+        "overwriteFile": "true",
+        "encoding": "utf8",
+        "x": 1130,
+        "y": 100,
+        "wires": [
+            [
+                "v15exec"
+            ]
+        ]
+    },
+    {
+        "id": "v15exec",
+        "type": "exec",
+        "z": "v15tab",
+        "command": "\"C:\\tools\\sqlite\\sqlite3.exe\\sqlite3.exe\" -bail C:/Users/clabo/kursovoy15/db/variant.db \".read C:/Users/clabo/kursovoy15/db/schema.sql\" \".read C:/Users/clabo/kursovoy15/db/load.sql\"",
+        "addpay": false,
+        "append": "",
+        "useSpawn": "false",
+        "timer": "",
+        "winHide": true,
+        "oldrc": false,
+        "name": "Загрузить в SQLite",
+        "x": 1380,
+        "y": 100,
+        "wires": [
+            [
+                "v15result"
+            ],
+            [
+                "v15stderr"
+            ],
+            [
+                "v15exit"
+            ]
+        ]
+    },
+    {
+        "id": "v15result",
+        "type": "debug",
+        "z": "v15tab",
+        "name": "Результат SQLite",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1650,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "v15stderr",
+        "type": "debug",
+        "z": "v15tab",
+        "name": "Ошибки SQLite",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1650,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "v15exit",
+        "type": "debug",
+        "z": "v15tab",
+        "name": "Код завершения: 0 = OK",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 1670,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "v15catch",
+        "type": "catch",
+        "z": "v15tab",
+        "name": "Ошибки потока",
+        "scope": null,
+        "uncaught": false,
+        "x": 650,
+        "y": 300,
+        "wires": [
+            [
+                "v15error"
+            ]
+        ]
+    },
+    {
+        "id": "v15error",
+        "type": "debug",
+        "z": "v15tab",
+        "name": "Ошибка чтения или разбора",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "x": 920,
+        "y": 300,
+        "wires": []
+    }
+]
