@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "author": "Variant 15",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 144.6, "left": 18.6, "attrs": {} },
+    {
+      "type": "wokwi-photoresistor-sensor",
+      "id": "ldr",
+      "top": -92.8,
+      "left": -210.4,
+      "attrs": { "lux": "500" }
+    },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "us",
+      "top": -100,
+      "left": 90,
+      "attrs": { "distance": "100" }
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "sw",
+      "top": 376.2,
+      "left": -138.1,
+      "rotate": 270,
+      "attrs": { "bounce": "0" }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo",
+      "top": 142,
+      "left": 432,
+      "attrs": { "horn": "single" }
+    },
+    { "type": "wokwi-led", "id": "led", "top": -80, "left": 390, "attrs": { "color": "white" } },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 22.6,
+      "left": 383.15,
+      "rotate": 270,
+      "attrs": { "value": "100" }
+    }
+  ],
+  "connections": [
+    [ "uno:5V", "ldr:VCC", "red", [ "v42.9", "h-189.6", "v-451.2" ] ],
+    [ "ldr:AO", "uno:A0", "green", [ "h336", "v402.5", "h-71" ] ],
+    [ "uno:5V", "us:VCC", "red", [ "h-5.8", "v28.7", "h-172.8", "v-370.3" ] ],
+    [ "uno:GND.1", "us:GND", "black", [ "v-48", "h57.2" ] ],
+    [ "us:TRIG", "uno:3", "green", [ "h1.5", "v101.5", "h72.8" ] ],
+    [ "us:ECHO", "uno:4", "blue", [ "h1.1", "v82.3", "h53.7" ] ],
+    [ "sw:2", "uno:6", "green", [ "h432", "v-268.9", "h-109.3" ] ],
+    [ "sw:3", "uno:GND.2", "black", [] ],
+    [ "servo:PWM", "uno:9", "orange", [ "h-94", "v-74.6", "h-154.4" ] ],
+    [ "servo:GND", "uno:GND.2", "black", [ "h-84.4", "v184.4", "h-146", "v-40.3" ] ],
+    [ "r1:2", "led:A", "green", [] ],
+    [ "ldr:GND", "uno:GND.3", "black", [ "h19.2", "v470", "h220.8" ] ],
+    [ "servo:V+", "uno:5V", "red", [ "h-76.8", "v211.3", "h-182.4" ] ],
+    [ "r1:1", "uno:5", "green", [ "h0" ] ],
+    [ "led:C", "uno:GND.3", "black", [ "v278", "h-40.2", "v124.8", "h-163.2" ] ]
+  ],
+  "dependencies": {}
+}
